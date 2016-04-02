@@ -1,0 +1,24 @@
+{
+  "name": "json-synchronator",
+  "version": "1.0.0",
+  "description": "A utility to make changes to two JSON files with the same attributes but with different values. An example of this is maintaining JSON configuration files for languages.",
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/gulp test"
+  },
+  "keywords": [
+    "json"
+  ],
+  "author": "pfernandom",
+  "license": "ISC",
+  "dependencies": {
+    "fs": "0.0.2"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "gulp": "^3.9.1",
+    "gulp-mocha": "^2.2.0",
+    "gulp-util": "^3.0.7",
+    "mocha": "^2.4.5"
+  }
+}
