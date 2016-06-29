@@ -1,0 +1,8 @@
+{
+	"test": "hello",
+	"another": "bye",
+	"sub": {
+		"number1": "one",
+		"number2": "two"
+	}
+}
