@@ -12,7 +12,8 @@
   "author": "pfernandom",
   "license": "ISC",
   "dependencies": {
-    "fs": "0.0.2"
+    "fs": "0.0.2",
+    "q": "^1.4.1"
   },
   "devDependencies": {
     "chai": "^3.5.0",

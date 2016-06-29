@@ -1,3 +1,4 @@
+var fs = require('fs')
 /**
  * Escape special characters in the given string of html.
  *
@@ -5,62 +6,95 @@
  * @return {String}
  */
 module.exports = {
-	escape: function (html) {
-		return String(html)
-			.replace(/&/g, '&amp;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#39;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;');
-	},
-
 	/**
-	 * Unescape special characters in the given string of html.
+	 * Set a value or sub JSON to two or more files.
+	 * @param config
+	 * 	The configuration object. It must contain the following properties:
+	 * 		{
+			"key":"test",  //Key path of the value or sub JSON to set
+			"values":[ \	//Array of the files to synchronize and their values.
+				{
+					"fileName":FILE_EN,
+					"value":"new_value"
+				},
+				...
+			]
+		}
 	 *
-	 * @param  {String} html
-	 * @return {String}
+	 * @returns {boolean}
 	 */
-	unescape: function (html) {
-		return String(html)
-			.replace(/&amp;/g, '&')
-			.replace(/&quot;/g, '"')
-			.replace(/&#39;/g, '\'')
-			.replace(/&lt;/g, '<')
-			.replace(/&gt;/g, '>');
-	},
+	synch: function (config) {
+		var result = false;
+		var context = this;
 
-	synch: function (key, jsonFile) {
-		var fs = require('fs')
-		var file = fs.readFileSync(jsonFile, "ascii")
+		var keyPath;
 
-		var json = JSON.parse(file)
-		var result = {};
+		try{
+			if (config.key) {
+				keyPath = config.key;
+			}
+			else{
+				throw new Error("The expected property 'key' is undefined");
+			}
 
-		result[key] = json[key];
+			if (config.values) {
+				for (var i in config.values) {
+					if (config.values.hasOwnProperty(i)) {
+						var value = config.values[i].value;
+						var fileName = config.values[i].fileName;
+						var json = JSON.parse(fs.readFileSync(fileName, "ascii"));
+
+						var newJSON = context.setSubJSON(value, keyPath, json);
+
+						context.saveJSON(fileName, newJSON);
+					}
+
+				}
+				result = true;
+			}
+			else{
+				throw new Error("The expected property 'values' is undefined");
+			}
+		}
+		catch(e){
+			console.error(e);
+			result = false;
+		}
 		return result;
-		/*
-		 fs.writeFile(fileName, JSON.stringify(file), function (err) {
-		 if (err) return console.log(err)
-		 console.log(JSON.stringify(file))
-		 console.log('writing to ' + fileName)
-		 });
-		 */
+
+
 	},
-
-	getSubJSON:function(keyPath,json){
+	/**
+	 * Retrieves a sub JSON using a key path.
+	 *
+	 * Given a JSON:
+	 * {
+	 * 	sub:{
+			"number1":"one",
+			"number2":"two"
+		}
+	 * }
+	 *
+	 * And the key path sub.number1, getSubJson will return 'one'
+	 *
+	 * @param keyPath - The key path to search a property or sub JSON: e.g. 'sub.number1'
+	 * @param json - A JSON object
+	 * @returns {Array} - An array of all the properties or sub JSON objects which match the key path.
+	 */
+	getSubJSON: function (keyPath, json) {
 		var results = [];
-		var getObj = function(currPath, json){
+		var getObj = function (currPath, json) {
 
-			for(var key in json) {
+			for (var key in json) {
 				var newPath;
-				if(currPath){
+				if (currPath) {
 					newPath = currPath + "." + key
 				}
-				else{
+				else {
 					newPath = key;
 				}
 
-				if(newPath === keyPath){
+				if (newPath === keyPath) {
 					results.push(json[key]);
 				}
 
@@ -72,23 +106,49 @@ module.exports = {
 			}
 		}
 
-		getObj('',json);
+		getObj('', json);
 
 		return results;
 	},
-	setSubJSON:function(value,keyPath,json){
-		var getObj = function(currPath, json){
 
-			for(var key in json) {
+	/**
+	 * Retrieves a sub JSON or property from a files using a key path.
+	 *
+	 * @param keyPath - The key path to search a property or sub JSON: e.g. 'sub.number1'
+	 * @param jsonFiles - An array of file paths
+	 * @returns {Array} - An array of all the properties or sub JSON objects which match the key path.
+	 */
+	getSubJSONinFiles: function (keyPath, jsonFiles) {
+		var context = this;
+		var results = [];
+		for (var i in jsonFiles) {
+			if (jsonFiles.hasOwnProperty(i)) {
+				var result = {};
+				var jsonFile = jsonFiles[i];
+				result.fileName = jsonFile;
+
+				jsonFile = JSON.parse(fs.readFileSync(jsonFile, "ascii"))
+
+				result.value = context.getSubJSON(keyPath, jsonFile);
+				results.push(result);
+			}
+		}
+		return results;
+	},
+
+	setSubJSON: function (value, keyPath, json) {
+		var getObj = function (currPath, json) {
+
+			for (var key in json) {
 				var newPath;
-				if(currPath){
+				if (currPath) {
 					newPath = currPath + "." + key
 				}
-				else{
+				else {
 					newPath = key;
 				}
 
-				if(newPath === keyPath){
+				if (newPath === keyPath) {
 					json[key] = value;
 				}
 
@@ -100,7 +160,12 @@ module.exports = {
 			}
 		}
 
-		getObj('',json);
+		getObj('', json);
 		return json;
+	},
+
+	saveJSON: function (fileName, json) {
+		var jsonString = JSON.stringify(json, null, '\t');
+		fs.writeFileSync(fileName, jsonString);
 	}
 };

@@ -1,8 +1,8 @@
 {
-	"test":"hola",
-	"another":"adios",
-	"sub":{
-		"number1":"uno",
-		"number2":"dos"
+	"test": "hola",
+	"another": "adios",
+	"sub": {
+		"number1": "uno",
+		"number2": "dos"
 	}
 }

@@ -1,60 +1,64 @@
 var should = require('chai').should(),
-	jsynch = require('../index'),
-	synch = jsynch.synch,
-	escape = jsynch.escape,
-	unescape = jsynch.unescape;
+	jsynch = require('../index');
 
-describe('#escape', function () {
-	it('converts & into &amp;', function () {
-		escape('&').should.equal('&amp;');
-	});
-
-	it('converts " into &quot;', function () {
-		escape('"').should.equal('&quot;');
-	});
-
-	it('converts \' into &#39;', function () {
-		escape('\'').should.equal('&#39;');
-	});
-
-	it('converts < into &lt;', function () {
-		escape('<').should.equal('&lt;');
-	});
-
-	it('converts > into &gt;', function () {
-		escape('>').should.equal('&gt;');
-	});
-});
-
-describe('#unescape', function () {
-	it('converts &amp; into &', function () {
-		unescape('&amp;').should.equal('&');
-	});
-
-	it('converts &quot; into "', function () {
-		unescape('&quot;').should.equal('"');
-	});
-
-	it('converts &#39; into \'', function () {
-		unescape('&#39;').should.equal('\'');
-	});
-
-	it('converts &lt; into <', function () {
-		unescape('&lt;').should.equal('<');
-	});
-
-	it('converts &gt; into >', function () {
-		unescape('&gt;').should.equal('>');
-	});
-});
 
 var fs = require('fs')
+
+function getJSON(fileName){
+	var file = fs.readFileSync(fileName, "ascii");
+	return JSON.parse(file);
+}
+
 describe('#synch', function () {
+	beforeEach(function() {
+		jsynch.saveJSON('test/file_en.json',{
+			"test":"hello",
+			"another":"bye",
+			"sub":{
+				"number1":"one",
+				"number2":"two"
+			}
+		});
+
+		jsynch.saveJSON('test/file_es.json',{
+			"test":"hola",
+			"another":"adios",
+			"sub":{
+				"number1":"uno",
+				"number2":"dos"
+			}
+		});
+
+		var json = getJSON('test/file_en.json');
+
+		JSON.stringify(json).should.equal(JSON.stringify({
+			"test": "hello",
+			"another": "bye",
+			"sub": {
+				"number1": "one",
+				"number2": "two"
+			}
+		}));
+
+
+	});
 
 	it('retrieves the correct property', function () {
-		var file = fs.readFileSync('test/file_en.json', "ascii")
+		jsynch.saveJSON('test/file_es.json',{
+			"test":"hola",
+			"another":"adios",
+			"sub":{
+				"number1":"uno",
+				"number2":"dos"
+			}
+		});
+	});
 
-		var json = JSON.parse(file)
+	/**
+	 * Test to retrieve a property or sub JSON.
+	 */
+	it('retrieves the correct property', function () {
+		var json = getJSON('test/file_en.json');
 
 		JSON.stringify(jsynch.getSubJSON('test',json)).should.equal(JSON.stringify(['hello']));
 		JSON.stringify(jsynch.getSubJSON('sub',json)).should.equal(JSON.stringify([{
@@ -62,13 +66,14 @@ describe('#synch', function () {
 			"number2":"two"
 		}]));
 		JSON.stringify(jsynch.getSubJSON('sub.number1',json)).should.equal(JSON.stringify(['one']));
+		JSON.stringify(jsynch.getSubJSON('notexisting',json)).should.equal(JSON.stringify([]));
 	});
 
+	/**
+	 * Test to set a value in a JSON using a key path
+	 */
 	it('sets the correct property', function () {
-		var file = fs.readFileSync('test/file_en.json', "ascii")
-
-		var json = JSON.parse(file)
-
+		var json = getJSON('test/file_en.json');
 		var newValue = "newValue";
 
 		JSON.stringify(jsynch.setSubJSON(newValue,'test',JSON.parse(JSON.stringify(json))))
@@ -90,11 +95,144 @@ describe('#synch', function () {
 					"number2":"two"
 				}
 			}));
+
+		JSON.stringify(jsynch.setSubJSON(newValue,'unexisting',JSON.parse(JSON.stringify(json))))
+			.should.equal(JSON.stringify({
+			"test":"hello",
+			"another":"bye",
+			"sub":{
+				"number1":"one",
+				"number2":"two"
+			}
+		}));
+
+		JSON.stringify(jsynch.setSubJSON(newValue,'sub',JSON.parse(JSON.stringify(json))))
+			.should.equal(JSON.stringify({
+			"test":"hello",
+			"another":"bye",
+			"sub":newValue
+		}));
 	});
 
-	it('retrieves the correct property', function () {
-		JSON.stringify(synch('test', 'test/file_en.json')).should.equal(JSON.stringify({
-			'test': 'hello'
+	it('synchronizes a new value in two different JSON files', function () {
+		const FILE_EN = 'test/file_en.json',
+			FILE_ES = 'test/file_es.json';
+
+		var result1 = jsynch.synch({
+			"values": [
+				{
+					"fileName": FILE_EN,
+					"value": "new_value"
+				},
+				{
+					"fileName": FILE_ES,
+					"value": "nuevo_valor"
+				}
+			]
+		});
+
+		var result2 = jsynch.synch({
+			"key": "test"
+		});
+
+		result1.should.equal(false);
+		result2.should.equal(false);
+	});
+
+	it('synchronizes a new value in two different JSON files', function () {
+		const FILE_EN = 'test/file_en.json',
+			FILE_ES = 'test/file_es.json';
+
+		var result = jsynch.synch({
+			"key":"test",
+			"values":[
+				{
+					"fileName":FILE_EN,
+					"value":"new_value"
+				},
+				{
+					"fileName":FILE_ES,
+					"value":"nuevo_valor"
+				}
+			]
+		});
+
+		result.should.equal(true);
+
+		var json = getJSON(FILE_EN);
+
+		JSON.stringify(json).should.equal(JSON.stringify({
+			"test": "new_value",
+			"another": "bye",
+			"sub": {
+				"number1": "one",
+				"number2": "two"
+			}
 		}));
+
+		var json = getJSON(FILE_ES);
+
+		JSON.stringify(json).should.equal(JSON.stringify({
+			"test": "nuevo_valor",
+			"another": "adios",
+			"sub": {
+				"number1": "uno",
+				"number2": "dos"
+			}
+		}));
+
+
+		JSON.stringify(jsynch.synch({
+			"key":"sub.number1",
+			"values":[
+				{
+					"fileName":FILE_EN,
+					"value":"new_value"
+				},
+				{
+					"fileName":FILE_ES,
+					"value":"nuevo_valor"
+				}
+			]
+		}));
+
+
+		var json = getJSON(FILE_EN);
+
+		JSON.stringify(json).should.equal(JSON.stringify({
+			"test": "new_value",
+			"another": "bye",
+			"sub": {
+				"number1": "new_value",
+				"number2": "two"
+			}
+		}));
+
+		var json = getJSON(FILE_ES);
+
+		JSON.stringify(json).should.equal(JSON.stringify({
+			"test": "nuevo_valor",
+			"another": "adios",
+			"sub": {
+				"number1": "nuevo_valor",
+				"number2": "dos"
+			}
+		}));
+
+	});
+
+
+	it('retrieves the correct property from two JSON files', function () {
+		var files = ['test/file_en.json','test/file_es.json'];
+		JSON.stringify(jsynch.getSubJSONinFiles('test', files)).should.equal(JSON.stringify([
+			{
+				fileName:files[0],
+				value:["hello"]
+			},
+			{
+				fileName:files[1],
+				value:["hola"]
+			}
+		]));
 	});
 });
